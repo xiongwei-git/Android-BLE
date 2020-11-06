@@ -24,10 +24,10 @@ import java.util.Map;
 import java.util.UUID;
 
 import cn.com.heaton.blelibrary.BuildConfig;
+import cn.com.heaton.blelibrary.ble.callback.BleNotifyCallback;
 import cn.com.heaton.blelibrary.ble.callback.wrapper.ConnectWrapperCallback;
 import cn.com.heaton.blelibrary.ble.callback.wrapper.DescWrapperCallback;
 import cn.com.heaton.blelibrary.ble.callback.wrapper.MtuWrapperCallback;
-import cn.com.heaton.blelibrary.ble.callback.wrapper.NotifyWrapperCallback;
 import cn.com.heaton.blelibrary.ble.callback.wrapper.ReadRssiWrapperCallback;
 import cn.com.heaton.blelibrary.ble.callback.wrapper.ReadWrapperCallback;
 import cn.com.heaton.blelibrary.ble.callback.wrapper.WriteWrapperCallback;
@@ -65,7 +65,7 @@ public final class BleRequestImpl<T extends BleDevice> {
     //The address of the connected device
     private List<String> connectedAddressList = new ArrayList<>();
     private ConnectWrapperCallback<T> connectWrapperCallback;
-    private NotifyWrapperCallback<T> notifyWrapperCallback;
+    //    private NotifyWrapperCallback<T> notifyWrapperCallback;
     private MtuWrapperCallback<T> mtuWrapperCallback;
     private ReadRssiWrapperCallback<T> readRssiWrapperCallback;
     private ReadWrapperCallback<T> readWrapperCallback;
@@ -196,6 +196,7 @@ public final class BleRequestImpl<T extends BleDevice> {
          * @param characteristic 蓝牙通知特征对象
          */
         @Override
+        @SuppressWarnings("unchecked")
         public void onCharacteristicChanged(BluetoothGatt gatt,
                                             BluetoothGattCharacteristic characteristic) {
             synchronized (locker) {
@@ -203,18 +204,25 @@ public final class BleRequestImpl<T extends BleDevice> {
                 BleLog.d(TAG, gatt.getDevice().getAddress() + " -- onCharacteristicChanged: "
                         + (characteristic.getValue() != null ? ByteUtils.toHexString(characteristic.getValue()) : ""));
                 T bleDevice = getBleDeviceInternal(gatt.getDevice().getAddress());
-                if (notifyWrapperCallback != null) {
-                    notifyWrapperCallback.onChanged(bleDevice, characteristic);
+//                if (notifyWrapperCallback != null) {
+//                    notifyWrapperCallback.onChanged(bleDevice, characteristic);
+//                }
+                NotifyRequest<T> instance = (NotifyRequest<T>) Rproxy.getRequest(NotifyRequest.class);
+                if (instance != null) {
+                    BleNotifyCallback<T> callback = instance.getNotify(bleDevice);
+                    if (callback != null) callback.onChanged(bleDevice, characteristic);
                 }
-                if (options.uuid_ota_write_cha.equals(characteristic.getUuid()) || options.uuid_ota_notify_cha.equals(characteristic.getUuid())) {
-                    if (otaListener != null) {
-                        otaListener.onChange(characteristic.getValue());
+                if (Rproxy.getRequest(NotifyRequest.class))
+                    if (options.uuid_ota_write_cha.equals(characteristic.getUuid()) || options.uuid_ota_notify_cha.equals(characteristic.getUuid())) {
+                        if (otaListener != null) {
+                            otaListener.onChange(characteristic.getValue());
+                        }
                     }
-                }
             }
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public void onDescriptorWrite(BluetoothGatt gatt,
                                       BluetoothGattDescriptor descriptor, int status) {
             if (gatt == null || gatt.getDevice() == null) return;
@@ -231,15 +239,28 @@ public final class BleRequestImpl<T extends BleDevice> {
                         setCharacteristicNotification(gatt.getDevice().getAddress(), true);
                     } else {
                         BleLog.d(TAG, "set characteristic notification is completed");
-                        if (notifyWrapperCallback != null) {
+                        BleNotifyCallback<T> callback = null;
+                        NotifyRequest<T> instance = (NotifyRequest<T>) Rproxy.getRequest(NotifyRequest.class);
+                        if (instance != null) {
+                            callback = instance.getNotify(bleDevice);
+                        }
+                        if (callback != null) {
                             if (Arrays.equals(descriptor.getValue(), BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
                                     || Arrays.equals(descriptor.getValue(), BluetoothGattDescriptor.ENABLE_INDICATION_VALUE)) {
-                                notifyWrapperCallback.onNotifySuccess(bleDevice);
+                                callback.onNotifySuccess(bleDevice);
                             } else if (Arrays.equals(descriptor.getValue(), BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)) {
-                                notifyWrapperCallback.onNotifyCanceled(bleDevice);
+                                callback.onNotifyCanceled(bleDevice);
                             }
-
                         }
+//                        if (notifyWrapperCallback != null) {
+//                            if (Arrays.equals(descriptor.getValue(), BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+//                                    || Arrays.equals(descriptor.getValue(), BluetoothGattDescriptor.ENABLE_INDICATION_VALUE)) {
+//                                notifyWrapperCallback.onNotifySuccess(bleDevice);
+//                            } else if (Arrays.equals(descriptor.getValue(), BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)) {
+//                                notifyWrapperCallback.onNotifyCanceled(bleDevice);
+//                            }
+//
+//                        }
                     }
                 } else {
                     if (null != descWrapperCallback) {
@@ -312,7 +333,7 @@ public final class BleRequestImpl<T extends BleDevice> {
 
     void initialize(Context context) {
         this.connectWrapperCallback = Rproxy.getRequest(ConnectRequest.class);
-        this.notifyWrapperCallback = Rproxy.getRequest(NotifyRequest.class);
+//        this.notifyWrapperCallback = Rproxy.getRequest(NotifyRequest.class);
         this.mtuWrapperCallback = Rproxy.getRequest(MtuRequest.class);
         this.readWrapperCallback = Rproxy.getRequest(ReadRequest.class);
         this.readRssiWrapperCallback = Rproxy.getRequest(ReadRssiRequest.class);
@@ -326,7 +347,7 @@ public final class BleRequestImpl<T extends BleDevice> {
     void release() {
         connectWrapperCallback = null;
         mtuWrapperCallback = null;
-        notifyWrapperCallback = null;
+//        notifyWrapperCallback = null;
         readRssiWrapperCallback = null;
         readWrapperCallback = null;
         writeWrapperCallback = null;

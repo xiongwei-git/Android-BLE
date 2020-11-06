@@ -2,6 +2,8 @@ package cn.com.heaton.blelibrary.ble.request;
 
 import android.bluetooth.BluetoothGattCharacteristic;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import cn.com.heaton.blelibrary.ble.Ble;
@@ -19,62 +21,87 @@ import cn.com.heaton.blelibrary.ble.callback.wrapper.NotifyWrapperCallback;
 public class NotifyRequest<T extends BleDevice> implements NotifyWrapperCallback<T> {
 
     private static final String TAG = "NotifyRequest";
-    private BleNotifyCallback<T> notiftCallback;
+    //    private BleNotifyCallback<T> notifyCallback;
     private BleWrapperCallback<T> bleWrapperCallback;
+    private Map<String, BleNotifyCallback<T>> notifyCallbackMap = new HashMap<>();
 
     protected NotifyRequest() {
         bleWrapperCallback = Ble.options().bleWrapperCallback;
     }
 
     public void notify(T device, boolean enable, BleNotifyCallback<T> callback) {
-        notiftCallback = callback;
+//        notifyCallback = callback;
+        String address = ((BleDevice) device).getBleAddress();
+        notifyCallbackMap.put(address, callback);
         BleRequestImpl bleRequest = BleRequestImpl.getBleRequest();
         bleRequest.setCharacteristicNotification(device.getBleAddress(), enable);
     }
 
     public void notifyByUuid(T device, boolean enable, UUID serviceUUID, UUID characteristicUUID, BleNotifyCallback<T> callback) {
-        notiftCallback = callback;
+//        notifyCallback = callback;
+        String address = ((BleDevice) device).getBleAddress();
+        notifyCallbackMap.put(address, callback);
         BleRequestImpl bleRequest = BleRequestImpl.getBleRequest();
-        bleRequest.setCharacteristicNotificationByUuid(device.getBleAddress(),enable, serviceUUID, characteristicUUID);
+        bleRequest.setCharacteristicNotificationByUuid(device.getBleAddress(), enable, serviceUUID, characteristicUUID);
     }
 
     @Deprecated
     public void cancelNotify(T device, BleNotifyCallback<T> callback) {
-        notiftCallback = callback;
+//        notifyCallback = callback;
+        String address = ((BleDevice) device).getBleAddress();
+        notifyCallbackMap.remove(address);
         BleRequestImpl bleRequest = BleRequestImpl.getBleRequest();
         bleRequest.setCharacteristicNotification(device.getBleAddress(), false);
     }
 
     @Override
     public void onChanged(final T device, final BluetoothGattCharacteristic characteristic) {
-        if (null != notiftCallback){
-            notiftCallback.onChanged(device, characteristic);
+//        if (null != notifyCallback) {
+//            notifyCallback.onChanged(device, characteristic);
+//        }
+        String address = ((BleDevice) device).getBleAddress();
+        if (notifyCallbackMap.containsKey(address)) {
+            notifyCallbackMap.get(address).onChanged(device, characteristic);
         }
-
-        if (bleWrapperCallback != null){
+        if (bleWrapperCallback != null) {
             bleWrapperCallback.onChanged(device, characteristic);
         }
     }
 
     @Override
     public void onNotifySuccess(final T device) {
-        if (null != notiftCallback){
-            notiftCallback.onNotifySuccess(device);
+//        if (null != notifyCallback) {
+//            notifyCallback.onNotifySuccess(device);
+//        }
+        String address = ((BleDevice) device).getBleAddress();
+        if (notifyCallbackMap.containsKey(address)) {
+            notifyCallbackMap.get(address).onNotifySuccess(device);
         }
 
-        if (bleWrapperCallback != null){
+        if (bleWrapperCallback != null) {
             bleWrapperCallback.onNotifySuccess(device);
         }
     }
 
     @Override
     public void onNotifyCanceled(T device) {
-        if (null != notiftCallback){
-            notiftCallback.onNotifyCanceled(device);
+//        if (null != notifyCallback) {
+//            notifyCallback.onNotifyCanceled(device);
+//        }
+        String address = ((BleDevice) device).getBleAddress();
+        if (notifyCallbackMap.containsKey(address)) {
+            notifyCallbackMap.get(address).onNotifyCanceled(device);
         }
-
-        if (bleWrapperCallback != null){
+        if (bleWrapperCallback != null) {
             bleWrapperCallback.onNotifyCanceled(device);
         }
+    }
+
+    public BleNotifyCallback<T> getNotify(T device) {
+        String address = ((BleDevice) device).getBleAddress();
+        if (notifyCallbackMap.containsKey(address)) {
+            return notifyCallbackMap.get(address);
+        }
+        return null;
     }
 }
