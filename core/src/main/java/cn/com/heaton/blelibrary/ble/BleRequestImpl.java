@@ -212,12 +212,11 @@ public final class BleRequestImpl<T extends BleDevice> {
                     BleNotifyCallback<T> callback = instance.getNotify(bleDevice);
                     if (callback != null) callback.onChanged(bleDevice, characteristic);
                 }
-                if (Rproxy.getRequest(NotifyRequest.class))
-                    if (options.uuid_ota_write_cha.equals(characteristic.getUuid()) || options.uuid_ota_notify_cha.equals(characteristic.getUuid())) {
-                        if (otaListener != null) {
-                            otaListener.onChange(characteristic.getValue());
-                        }
+                if (options.uuid_ota_write_cha.equals(characteristic.getUuid()) || options.uuid_ota_notify_cha.equals(characteristic.getUuid())) {
+                    if (otaListener != null) {
+                        otaListener.onChange(characteristic.getValue());
                     }
+                }
             }
         }
 
